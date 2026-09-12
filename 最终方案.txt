@@ -1,0 +1,324 @@
+# AI 工作台最终方案
+
+## 1. 当前阶段目标
+
+当前处于“阶段 0：项目规划和技术选型”，暂不编写代码。
+
+本阶段需要确定：
+
+- 产品定位
+- 技术栈
+- 系统架构
+- 分阶段开发路线
+- 第一阶段 MVP 功能范围
+- 项目目录结构
+- 开始实现前需要确认的问题
+
+## 2. 产品定位
+
+项目暂定名称为 `AI Workbench`，也可以后续更换为个人品牌名称。
+
+这是一个面向个人学习、展示和持续迭代的 AI Agent 工作台，从“工具调用型 Agent”起步，逐步扩展到知识库（RAG）、多 Agent 协作和工作流编排。
+
+项目重点不是一开始追求功能大而全，而是展示：
+
+1. LLM 应用工程化能力，包括模型层解耦、工具调用和执行过程记录。
+2. 渐进式架构设计能力，支持从 MVP 平滑扩展。
+3. 工程规范意识，包括类型校验、测试、日志、安全边界和部署能力。
+
+## 3. 相关概念
+
+### AI Agent
+
+普通聊天机器人主要是输入问题并生成回答。Agent 还能够理解任务、判断是否需要工具、选择工具、传入参数、读取工具结果，并据此生成最终答案。
+
+第一阶段实现“单 Agent + 工具调用”。
+
+### LangChain 与 LangGraph
+
+- LangChain：提供模型、Prompt、工具、消息和 Agent 等基础能力。
+- LangGraph：用于有状态流程、多 Agent 和工作流编排。
+
+第一阶段使用 LangChain，阶段 4 再引入 LangGraph，避免过早增加复杂度。
+
+### RAG
+
+RAG 的流程是：文档上传、解析、切分、向量化、保存，提问时检索相关文本并交给模型生成答案。
+
+RAG 放在阶段 3，不纳入第一阶段 MVP。
+
+## 4. 推荐技术栈
+
+| 层次 | 推荐方案 | 选择理由 |
+|---|---|---|
+| 前端 | React + TypeScript + Vite | 适合作品展示，交互和扩展能力强，前后端边界清晰 |
+| 后端 | Python + FastAPI | 已有基础，类型友好，适合构建 API |
+| 数据校验 | Pydantic v2 | 用于请求、响应、配置和工具参数校验 |
+| ORM | SQLAlchemy 2.x | 成熟，便于后续迁移 PostgreSQL |
+| 第一阶段数据库 | SQLite | 本地启动简单，适合 MVP 和测试 |
+| 后续数据库 | PostgreSQL + pgvector | 支持正式部署和后续向量检索 |
+| Agent | LangChain | 提供模型和工具调用能力 |
+| 工作流 | 阶段 4 引入 LangGraph | 支持状态流转、多 Agent 和工作流 |
+| 模型接入 | 统一 OpenAI 兼容接口和适配层 | 屏蔽供应商差异 |
+| 配置 | pydantic-settings + `.env` | API Key 不写入代码 |
+| 日志 | Python logging | 第一阶段保持轻量，后续可接结构化日志 |
+| 测试 | pytest + httpx | 覆盖工具和 FastAPI 接口 |
+| 容器化 | Docker Compose，阶段 5 引入 | 先降低本地开发复杂度 |
+
+模型层至少预留以下供应商：
+
+- OpenAI 兼容接口
+- DeepSeek
+- 通义千问
+- 智谱
+- Ollama 本地模型
+
+DeepSeek、通义千问和智谱通常可以通过 OpenAI 兼容接口接入；如果存在接口差异，再通过独立适配器处理。
+
+## 5. 系统架构
+
+```text
+React + TypeScript 前端
+          |
+       REST API
+          v
+FastAPI API 层
+          |
+          +-- 会话服务
+          +-- Agent 服务
+          +-- 模型适配层
+          +-- 工具注册中心
+          +-- 日志与统一异常处理
+          |
+      SQLAlchemy
+          |
+     SQLite / PostgreSQL
+```
+
+Agent 执行流程：
+
+```text
+用户输入
+  -> 创建或读取会话
+  -> 选择模型
+  -> Agent 判断是否需要工具
+  -> 校验并执行工具
+  -> 保存工具调用记录
+  -> Agent 根据工具结果生成答案
+  -> 返回答案和执行步骤摘要
+```
+
+前端只展示执行步骤摘要、工具名称、输入、输出和最终答案，不展示模型隐式思维链。
+
+后端建议分为：`api`、`services`、`agent`、`models`、`tools`、`repositories`、`db`、`core` 和 `tests`。
+
+## 6. 分阶段开发路线
+
+### 阶段 0：规划与初始化
+
+目标：确定架构和边界，建立项目骨架、配置体系、数据库模型草案和 API 约定。
+
+输出：目录结构、FastAPI 基础服务、React 基础页面、配置文件、数据库模型草案和 README 初稿。
+
+验收：前后端可以启动，健康检查可访问，API 文档可打开，`.env` 配置能够读取。
+
+### 阶段 1：Agent 工具调用 MVP
+
+目标：完成可运行、可展示的单 Agent 工具调用闭环。
+
+输出：Web 对话、至少一个模型、基础工具、执行轨迹、会话保存、统一错误处理、日志和基础测试。
+
+验收：Agent 能选择工具；工具结果影响最终回答；前端能展示工具名称、输入、输出和摘要；会话刷新后仍能查看历史；非法路径和危险代码会被拒绝。
+
+### 阶段 2：模型管理和配置中心
+
+- 支持多个模型供应商
+- 支持模型切换
+- 支持模型能力和参数配置
+- 通过环境变量管理 API Key
+- 处理不同供应商的接口差异和错误
+
+### 阶段 3：知识库和 RAG
+
+- 支持 PDF、Markdown、Word、TXT
+- 文档上传、解析、切分和向量化
+- 使用 PostgreSQL + pgvector
+- 支持多个知识库
+- 支持检索测试和来源引用
+
+### 阶段 4：多 Agent 和工作流
+
+- 使用 LangGraph 管理状态
+- 增加规划、执行和审查等角色
+- 展示结构化工作流
+- 说明单 Agent 与多 Agent 的适用边界
+
+### 阶段 5：工程化和部署
+
+- Dockerfile 和 Docker Compose
+- PostgreSQL + pgvector
+- 配置管理、日志和监控
+- 测试覆盖、安全检查
+- 云服务器部署
+- 性能和成本优化
+
+## 7. 第一阶段 MVP 功能清单
+
+必须完成：
+
+1. React Web 对话界面。
+2. 会话创建、历史查看和基本保存。
+3. 模型选择，第一阶段先接入一个模型。
+4. Agent 判断是否调用工具。
+5. 当前时间查询工具。
+6. 数学计算工具。
+7. 可替换的网络搜索接口，可先使用 Mock。
+8. 限定目录范围的文件读取工具。
+9. 受限代码执行演示工具。
+10. 展示用户问题、执行步骤摘要、工具名称、工具输入、工具输出和最终答案。
+11. 统一响应结构、异常处理和日志记录。
+12. 工具单元测试和 FastAPI 接口测试。
+13. README 和运行说明。
+
+第一阶段暂不实现：
+
+- 用户注册、登录和完整权限系统
+- 多用户隔离
+- 文档向量化、pgvector 和 Milvus
+- 多 Agent 和可视化工作流编辑器
+- 生产级代码沙箱
+- 复杂监控系统
+
+工具安全要求：文件读取限制在配置的工作目录内；数学计算不能使用任意 `eval`；网络调用需要超时和异常处理；代码执行默认关闭，或仅允许受限表达式、白名单代码和超时控制，并明确不适合生产环境。
+
+## 8. 项目目录结构
+
+```text
+ai-workbench/
+├── backend/
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── api/
+│   │   │   └── v1/
+│   │   ├── agent/
+│   │   ├── models/
+│   │   ├── tools/
+│   │   ├── services/
+│   │   ├── repositories/
+│   │   ├── db/
+│   │   ├── schemas/
+│   │   └── core/
+│   ├── tests/
+│   ├── .env.example
+│   └── pyproject.toml
+├── frontend/
+│   ├── src/
+│   │   ├── api/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── hooks/
+│   │   ├── types/
+│   │   └── App.tsx
+│   ├── package.json
+│   └── vite.config.ts
+├── data/
+│   └── workspace/
+├── docs/
+│   ├── architecture.md
+│   ├── api.md
+│   └── roadmap.md
+├── .env.example
+├── .gitignore
+├── README.md
+└── docker-compose.yml
+```
+
+## 9. 第一阶段 API 草案
+
+```text
+GET  /api/v1/health
+GET  /api/v1/models
+GET  /api/v1/tools
+GET  /api/v1/sessions
+POST /api/v1/sessions
+GET  /api/v1/sessions/{session_id}
+POST /api/v1/sessions/{session_id}/messages
+```
+
+消息响应包含：会话 ID、消息 ID、最终答案、执行步骤、所用模型。
+
+## 10. 开始实现前需要确认的问题
+
+1. 项目名称是否使用 `AI Workbench`。
+2. 是否确认 React + TypeScript + Vite。
+3. 第一阶段使用 SQLite，后续迁移 PostgreSQL，是否同意。
+4. 首先接入哪个模型供应商，是否已有 API Key，或使用 Ollama。
+5. 是否已有网络搜索 API Key；没有时是否接受 Mock 接口。
+6. 代码执行是否接受仅支持受限表达式或白名单代码。
+7. 当前操作系统、是否安装 Docker Desktop、PostgreSQL、Node.js。
+8. 第一阶段是否暂不实现登录系统。
+9. 是否采用本地命令优先，阶段 5 再完善 Docker。
+10. 依赖管理使用 `pip + requirements.txt`，还是 `uv`/Poetry。
+11. GitHub 仓库是否已建立，是否需要分支策略和提交规范。
+12. 学习节奏是每个小功能完成后确认，还是一次完成阶段 0 的初始化任务。
+
+确认以上内容后，再开始阶段 0 的具体实现。每次实现前先说明修改文件及其作用，每完成一个小功能后提供验证方法。
+
+## 11. 开发协作与回复规范
+
+后续每次实现遵循“小步、可验证”的节奏：
+
+1. 先说明当前阶段目标、本次问题、相关概念和方案选择。
+2. 开始修改前列出文件清单，并说明每个文件的职责。
+3. 每次只实现一个逻辑完整的小功能，不跨越未验收的边界。
+4. 重要代码说明设计原因、输入输出和安全边界。
+5. 完成后提供安装命令、运行命令、验证步骤和常见问题。
+6. 遇到报错先定位原因，再提供修复；不擅自覆盖或删除已有文件。
+7. 信息不足且会影响架构或数据安全时，先向用户确认。
+8. 每个阶段完成后给出验收结果，并等待用户确认再进入下一阶段。
+
+每次回复固定包含：当前阶段目标、本次问题、概念讲解、技术方案、修改文件、代码、安装运行、验证方法、常见问题、下一步和练习题。
+
+## 12. 模型适配设计
+
+模型层对业务暴露统一接口，例如 `chat(messages, tools, options) -> ModelResponse`，由适配器负责供应商差异。适配器至少包含 `OpenAICompatibleAdapter` 和 `OllamaAdapter`，DeepSeek、通义千问、智谱优先复用 OpenAI 兼容适配器，必要时再增加专用适配器。
+
+模型配置字段包括 `provider`、`model_name`、`base_url`、`api_key_env`、`temperature`、`max_tokens` 和超时配置。密钥只从环境变量读取，日志和 API 响应中不得返回密钥。模型不可用、超时、限流和无效响应统一转换为应用异常。
+
+## 13. 数据库模型与持久化
+
+阶段 1 使用 SQLAlchemy 2.x + SQLite，表结构预留 PostgreSQL 迁移空间：
+
+- `sessions`：`id`、`title`、`model_id`、`created_at`、`updated_at`。
+- `messages`：`id`、`session_id`、`role`、`content`、`created_at`。
+- `tool_calls`：`id`、`message_id`、`tool_name`、`input_json`、`output_json`、`status`、`duration_ms`、`error`。
+
+一个会话包含多条消息，一条助手消息可以关联多条工具调用。执行步骤以结构化 JSON 保存，便于前端展示和后续审计；不保存模型隐式思维链。数据库访问通过 repository/service 层完成，SQLite 切换 PostgreSQL 时不改动 API 和 Agent 业务逻辑。
+
+## 14. API 契约
+
+所有接口统一返回 `{success, data, error}`。成功使用 2xx，参数错误使用 400/422，资源不存在使用 404，模型或工具超时使用 504，未知错误使用 500；`error` 至少包含 `code`、`message` 和可选 `details`。
+
+消息请求：`{content, model_id, options?}`。消息响应：`{session_id, message_id, answer, model_id, steps[]}`；每个 `steps` 项包含 `type`、`tool_name`、`input`、`output`、`status` 和 `duration_ms`，不包含完整思考过程。前端共享 TypeScript 类型与后端 Pydantic schema，API 文档由 FastAPI 自动生成并在 `docs/api.md` 维护示例。
+
+## 15. 工具安全与错误边界
+
+- 文件工具只允许访问配置的 workspace 根目录，使用规范化绝对路径并拒绝目录穿越、符号链接越界和超大文件。
+- 数学工具使用 AST 白名单解析，仅允许数字和有限运算符，禁止任意 `eval`。
+- 搜索工具设置连接和读取超时，限制返回大小，并将网络异常转换为可展示的工具错误。
+- 代码工具默认关闭；开启时只允许白名单表达式，在独立进程中执行，限制超时、输出长度和资源，并明确不适用于生产环境。
+- 每个工具使用 Pydantic 输入模型，执行失败也必须生成结构化步骤和日志，不能泄露 API Key、文件绝对路径或堆栈细节。
+
+## 16. 前端、测试与工程规范
+
+前端按 `api`、`types`、`components`、`pages`、`hooks` 拆分，核心组件包括会话列表、消息列表、执行步骤面板、模型选择器、输入框和错误提示。阶段 1 使用 REST 请求，后续根据需要增加流式响应。
+
+测试分层：工具单元测试覆盖合法输入、非法输入和安全边界；service 测试覆盖 Agent 决策和错误转换；FastAPI 接口测试使用 `pytest + httpx` 覆盖健康检查、会话、消息和统一响应；前端至少执行 TypeScript 检查和生产构建。每个新增功能必须附带验证命令和验收标准。
+
+日志使用 Python logging，至少记录 `request_id`、`session_id`、模型、工具名、状态和耗时；生产环境再升级结构化日志、监控和告警。代码遵循 PEP 8、类型注解和最小必要注释。
+
+## 17. 学习与求职交付计划
+
+每个功能完成时补充：对应的 Agent 核心知识、工程设计亮点、可写入简历的技术点、可优化方向和面试官可能追问的问题。最终文档补齐项目简介、架构图、目录说明、完整 README、API 文档、测试方案、Docker 部署文件、Git 分支与提交规范、简历项目描述、面试自我介绍、常见面试题答案和路线图。
+
+Git 提交采用按功能拆分的 Conventional Commits，例如 `feat(agent): add calculator tool`、`test(api): cover session endpoints`；README 提供截图、架构图、快速启动、环境变量、安全说明、测试和路线图，确保 GitHub 仓库可独立运行和展示。
