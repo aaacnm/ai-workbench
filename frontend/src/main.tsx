@@ -1,36 +1,40 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Bot, Plus, Send, Settings2 } from 'lucide-react';
+import { Bot, Plus, Send, Settings2, X } from 'lucide-react';
 import './style.css';
 
 type Step = { tool_name?: string; status?: string };
 type Message = { role: string; content: string; steps?: Step[] };
+type Model = { id: string; name: string; provider: string; available: boolean };
+type Config = { provider: string; model_name: string; base_url: string; temperature: number; max_tokens: number; timeout_seconds: number; api_key_configured: boolean };
+
+const defaultConfig: Config = { provider: 'mock', model_name: 'mock', base_url: '', temperature: 0.2, max_tokens: 1024, timeout_seconds: 30, api_key_configured: false };
+const providerOptions: Record<string, { label: string; models: string[]; baseUrl: string }> = {
+  mock: { label: 'Mock（本地演示）', models: ['mock'], baseUrl: '' },
+  'openai-compatible': { label: 'OpenAI 兼容接口', models: ['gpt-5.6-sol', 'gpt-4o-mini', 'gpt-4.1-mini'], baseUrl: 'https://api.openai.com/v1' },
+  deepseek: { label: 'DeepSeek', models: ['deepseek-chat', 'deepseek-reasoner'], baseUrl: 'https://api.deepseek.com/v1' },
+  qwen: { label: '通义千问', models: ['qwen-plus', 'qwen-turbo'], baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
+  zhipu: { label: '智谱', models: ['glm-4-flash', 'glm-4-plus'], baseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
+  ollama: { label: 'Ollama（本地）', models: ['qwen2.5:7b', 'llama3.1:8b'], baseUrl: 'http://localhost:11434/v1' },
+};
 
 function App() {
-  const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [sessionId, setSessionId] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [input, setInput] = useState(''); const [messages, setMessages] = useState<Message[]>([]); const [sessionId, setSessionId] = useState('');
+  const [models, setModels] = useState<Model[]>([]); const [modelId, setModelId] = useState('mock'); const [modelStatus, setModelStatus] = useState<{ configured: boolean } | null>(null); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
+  const [showSettings, setShowSettings] = useState(false); const [config, setConfig] = useState<Config>(defaultConfig); const [apiKey, setApiKey] = useState(''); const [saved, setSaved] = useState(false); const [profiles, setProfiles] = useState<Record<string, Config>>({});
 
-  useEffect(() => {
-    fetch('/api/v1/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: '我的工作台' }) })
-      .then((response) => response.json()).then((body) => setSessionId(body.data.id)).catch(() => setError('无法连接后端服务'));
-  }, []);
+  const loadModels = () => fetch('/api/v1/models').then((response) => response.json()).then((body) => { setModels(body.data || []); if (body.data?.[0]) setModelId(body.data[0].id); });
+  useEffect(() => { loadModels().catch(() => setError('无法加载模型列表')); fetch('/api/v1/config/models').then((response) => response.json()).then((body) => { const next: Record<string, Config> = {}; (body.data || []).forEach((item: Config) => { next[`${item.provider}:${item.model_name}`] = item; }); setProfiles(next); }).catch(() => setError('无法加载模型配置')); fetch('/api/v1/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: '我的工作台' }) }).then((response) => response.json()).then((body) => setSessionId(body.data.id)).catch(() => setError('无法连接后端服务')); }, []);
+  useEffect(() => { if (modelId) fetch(`/api/v1/models/${modelId}/status`).then((response) => response.json()).then((body) => setModelStatus(body.data || null)).catch(() => setModelStatus(null)); }, [modelId]);
+  useEffect(() => { if (!showSettings || !config.provider || !config.model_name) return; const key = `${config.provider}:${config.model_name}`; const profile = profiles[key]; if (profile) { setConfig((current) => ({ ...current, ...profile })); setApiKey(''); } }, [showSettings, config.provider, config.model_name, profiles]);
 
-  const send = async () => {
-    if (!input.trim() || !sessionId || busy) return;
-    const question = input;
-    setInput(''); setError(''); setMessages((items) => [...items, { role: 'user', content: question }]); setBusy(true);
-    try {
-      const response = await fetch(`/api/v1/sessions/${sessionId}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: question, model: 'mock' }) });
-      const body = await response.json();
-      if (!body.success) throw new Error(body.error?.message || '请求失败');
-      setMessages((items) => [...items, { role: 'assistant', content: body.data.answer, steps: body.data.steps }]);
-    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : '请求失败'); } finally { setBusy(false); }
-  };
+  const send = async () => { if (!input.trim() || !sessionId || busy) return; const question = input; setInput(''); setError(''); setMessages((items) => [...items, { role: 'user', content: question }]); setBusy(true); try { const response = await fetch(`/api/v1/sessions/${sessionId}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: question, model_id: modelId }) }); const body = await response.json(); if (!body.success) throw new Error(body.error?.message || '请求失败'); setMessages((items) => [...items, { role: 'assistant', content: body.data.answer, steps: body.data.steps }]); } catch (requestError) { setError(requestError instanceof Error ? requestError.message : '请求失败'); } finally { setBusy(false); } };
+  const saveConfig = async () => { setSaved(false); const response = await fetch('/api/v1/config/model', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...config, api_key: apiKey || null }) }); const body = await response.json(); if (!body.success) { setError(body.error?.message || '配置保存失败'); return; } const updated = { ...config, api_key_configured: body.data.api_key_configured }; setConfig(updated); setProfiles((items) => ({ ...items, [`${config.provider}:${config.model_name}`]: updated })); setApiKey(''); setSaved(true); await loadModels(); };
+  const clearConfig = async () => { const response = await fetch(`/api/v1/config/models/${config.provider}/${encodeURIComponent(config.model_name)}`, { method: 'DELETE' }); const body = await response.json(); if (!body.success) { setError(body.error?.message || '配置清除失败'); return; } setProfiles((items) => { const next = { ...items }; delete next[`${config.provider}:${config.model_name}`]; return next; }); setApiKey(''); setSaved(true); };
+  const selectProfile = (provider: string, modelName: string) => { const option = providerOptions[provider]; const profile = profiles[`${provider}:${modelName}`]; setConfig(profile ? { ...defaultConfig, ...profile } : { ...defaultConfig, provider, model_name: modelName, base_url: option?.baseUrl || '' }); setApiKey(''); };
+  const changeProvider = (provider: string) => { const option = providerOptions[provider]; selectProfile(provider, option.models[0]); };
 
-  return <div className="app"><aside><div className="brand"><Bot size={22} /> AI Workbench</div><button className="new" onClick={() => setMessages([])}><Plus size={17} /> 新建会话</button><div className="section">会话</div><div className="session active">我的工作台</div><div className="bottom"><Settings2 size={17} /> 设置</div></aside><main><header><div><h1>我的工作台</h1><span>Agent 工具调用实验室</span></div><select><option>Mock Model · local</option></select></header><div className="chat">{messages.length === 0 ? <div className="empty"><Bot size={42} /><h2>开始一次对话</h2><p>输入任务，Agent 将在这里展示工具选择与执行结果。</p></div> : messages.map((message, index) => <div className={'msg ' + message.role} key={index}><b>{message.role === 'user' ? '你' : 'Agent'}</b><div>{message.content}</div>{message.steps?.filter((step) => step.tool_name).map((step, stepIndex) => <div className="step" key={stepIndex}>工具：{step.tool_name} · {step.status}</div>)}</div>)}</div>{error && <div className="error">{error}</div>}<div className="composer"><textarea value={input} disabled={busy} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); send(); } }} placeholder="描述一个任务，例如：查询现在的时间" /><button onClick={send} disabled={busy} title="发送"><Send size={18} /></button></div></main></div>;
+  return <div className="app"><aside><div className="brand"><Bot size={22} /> AI Workbench</div><button className="new" onClick={() => setMessages([])}><Plus size={17} /> 新建会话</button><div className="section">会话</div><div className="session active">我的工作台</div><button className="settings-button" onClick={() => setShowSettings(true)}><Settings2 size={17} /> 设置</button></aside><main><header><div><h1>我的工作台</h1><span>Agent 工具调用实验室</span></div><div className="model-control"><select value={modelId} onChange={(event) => setModelId(event.target.value)} disabled={busy || models.length === 0}>{models.map((model) => <option key={model.id} value={model.id}>{model.name} · {model.provider}</option>)}</select>{modelStatus && <small className={modelStatus.configured ? 'status good' : 'status bad'}>{modelStatus.configured ? '已配置' : '未配置'}</small>}</div></header><div className="chat">{messages.length === 0 ? <div className="empty"><Bot size={42} /><h2>开始一次对话</h2><p>输入任务，Agent 将在这里展示工具选择与执行结果。</p></div> : messages.map((message, index) => <div className={'msg ' + message.role} key={index}><b>{message.role === 'user' ? '你' : 'Agent'}</b><div>{message.content}</div>{message.steps?.filter((step) => step.tool_name).map((step, stepIndex) => <div className="step" key={stepIndex}>工具：{step.tool_name} · {step.status}</div>)}</div>)}</div>{error && <div className="error">{error}</div>}<div className="composer"><textarea value={input} disabled={busy} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); send(); } }} placeholder="描述一个任务，例如：查询现在的时间" /><button onClick={send} disabled={busy} title="发送"><Send size={18} /></button></div></main>{showSettings && <div className="modal-backdrop"><section className="settings-panel"><div className="settings-header"><h2>模型配置</h2><button onClick={() => setShowSettings(false)} title="关闭"><X size={18} /></button></div><label>供应商<select value={config.provider} onChange={(event) => changeProvider(event.target.value)}>{Object.entries(providerOptions).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}</select></label><label>模型名称<select value={config.model_name} onChange={(event) => setConfig({ ...config, model_name: event.target.value })}>{(providerOptions[config.provider]?.models || [config.model_name]).map((model) => <option key={model} value={model}>{model}</option>)}</select></label><label>Base URL<input value={config.base_url || ''} onChange={(event) => setConfig({ ...config, base_url: event.target.value })} /></label><label>API Key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder={config.api_key_configured ? '已配置，留空表示不修改' : '仅发送到后端'} /></label><div className="settings-grid"><label>温度<input type="number" min="0" max="2" step="0.1" value={config.temperature} onChange={(event) => setConfig({ ...config, temperature: Number(event.target.value) })} /></label><label>最大 Token<input type="number" min="1" value={config.max_tokens} onChange={(event) => setConfig({ ...config, max_tokens: Number(event.target.value) })} /></label><label>超时（秒）<input type="number" min="1" value={config.timeout_seconds} onChange={(event) => setConfig({ ...config, timeout_seconds: Number(event.target.value) })} /></label></div><div className="settings-actions"><button className="save-button" onClick={saveConfig}>保存配置</button><button className="clear-button" onClick={clearConfig}>清除配置</button></div>{saved && <small className="saved">配置已保存</small>}</section></div>}</div>;
 }
 
 createRoot(document.getElementById('root')!).render(<App />);

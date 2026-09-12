@@ -46,17 +46,17 @@ class AgentService:
             response = self.model.chat(messages, definitions)
             if not response.tool_calls:
                 return AgentResponse(response.content, steps, self.model_name)
-            messages.append({"role": "assistant", "content": response.content or ""})
+            messages.append({"role": "assistant", "content": response.content or "", "tool_calls": [{"id": call.get("id") or f"call_{index}", "type": "function", "function": {"name": call.get("name"), "arguments": call.get("arguments", "{}")}} for index, call in enumerate(response.tool_calls)]})
             for call in response.tool_calls:
                 name = call.get("name", "")
                 try:
                     payload = json.loads(call.get("arguments", "{}"))
                     result = self.registry.execute(name, payload)
                     steps.append({"type": "tool_call", "tool_name": name, "input": payload, "output": result["output"], "status": "success"})
-                    messages.append({"role": "tool", "content": json.dumps(result["output"], ensure_ascii=False)})
+                    messages.append({"role": "tool", "tool_call_id": call.get("id") or name, "name": name, "content": json.dumps(result["output"], ensure_ascii=False)})
                 except (ValueError, KeyError, json.JSONDecodeError) as exc:
                     steps.append({"type": "tool_call", "tool_name": name, "status": "error", "error": str(exc)})
-                    messages.append({"role": "tool", "content": json.dumps({"error": str(exc)}, ensure_ascii=False)})
+                    messages.append({"role": "tool", "tool_call_id": call.get("id") or name, "name": name, "content": json.dumps({"error": str(exc)}, ensure_ascii=False)})
         return AgentResponse("工具调用次数超过限制，请缩小任务范围。", steps, self.model_name)
 
     @staticmethod

@@ -21,6 +21,9 @@
 | POST | `/sessions` | 创建会话，Body `{title?}` |
 | GET | `/sessions/{id}` | 会话消息和步骤 |
 | POST | `/sessions/{id}/messages` | 发送消息 |
+| GET | `/models/{model_id}/status` | 查看模型配置状态 |
+| GET | `/config/model` | 查看当前模型配置摘要 |
+| POST | `/config/model` | 更新运行时模型配置 |
 
 发送消息 Body：
 
@@ -35,3 +38,13 @@
 ```
 
 状态码：参数错误 `422`，资源不存在 `404`，工具/模型超时 `504`，未知错误 `500`。
+
+## 模型配置
+
+`POST /config/model` 请求示例：
+
+```json
+{"provider":"openai-compatible","model_name":"gpt-5.6-sol","base_url":"https://example.com/v1","api_key":"secret","temperature":0.2,"max_tokens":1024,"timeout_seconds":30}
+```
+
+API Key 使用 Fernet 加密后保存到 SQLite，响应只返回 `api_key_configured`，不会返回密钥原文。生产或本地持久化必须设置 `CONFIG_ENCRYPTION_KEY`。

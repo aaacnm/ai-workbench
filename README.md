@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-阶段 1 已完成核心 MVP：单 Agent 工具调用、SQLite 会话持久化、模型适配层、前后端联调和执行步骤展示。
+阶段 1 已完成核心 MVP：单 Agent 工具调用、SQLite 会话持久化、模型适配层、前后端联调和执行步骤展示。阶段 2 已完成模型配置中心、多供应商适配、运行时切换和 API Key 加密持久化。
 
 已实现工具：当前时间、数学计算、Mock 搜索、工作目录文件读取、默认关闭的受限代码执行。
 
@@ -39,7 +39,7 @@ python -m pytest tests -q --basetemp .pytest-temp -p no:cacheprovider
 
 ## 配置
 
-复制 `backend/.env.example` 为 `.env`。默认使用离线 Mock/规则型 Agent，不需要 API Key。真实 OpenAI 兼容模型需要配置 `MODEL_PROVIDER`、`MODEL_NAME`、`OPENAI_API_KEY` 和可选的 `OPENAI_BASE_URL`。
+复制 `backend/.env.example` 为 `.env`。后端启动时会自动加载该文件。默认使用离线 Mock/规则型 Agent，不需要 API Key。真实 OpenAI 兼容模型需要配置 `MODEL_PROVIDER`、`MODEL_NAME`、`OPENAI_API_KEY` 和可选的 `OPENAI_BASE_URL`。
 
 代码工具默认关闭；仅本地演示时显式设置 `ENABLE_CODE_TOOL=true`，不适合生产环境。
 
@@ -48,3 +48,14 @@ python -m pytest tests -q --basetemp .pytest-temp -p no:cacheprovider
 - [架构设计](docs/architecture.md)
 - [API 契约](docs/api.md)
 - [开发路线图](docs/roadmap.md)
+
+## 阶段 2 验收
+
+```powershell
+cd backend
+python -m pytest tests -q --basetemp .pytest-temp -p no:cacheprovider
+```
+
+验收内容：前端设置面板可切换供应商和模型；配置摘要不返回 API Key；重启后端后配置可恢复；模型请求使用配置的 Base URL；模型失败时返回结构化错误。当前真实联调已验证 OpenAI 兼容中转站和 `gpt-5.6-sol`。
+
+阶段 2 后续优化：配置删除/清空、多模型并行注册、配置失败回滚和更细粒度的供应商健康检查。
