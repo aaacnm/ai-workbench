@@ -8,3 +8,9 @@ data/*.db
 
 prompt.txt
 最终方案.txt
+
+prompt.txt
+最终方案.txt
+backend/.pytest_cache/
+backend/.pytest-temp*/
+backend/.tmp/
