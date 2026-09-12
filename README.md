@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # AI Workbench
 
 面向个人学习与作品展示的 AI Agent 工作台，按“工具调用 -> RAG -> 多 Agent -> 工作流”渐进迭代。
@@ -42,3 +43,6 @@ npm.cmd run dev
 ```
 
 打开 http://localhost:5173，API 文档位于 http://127.0.0.1:8000/docs。
+=======
+# ai-workbench
+>>>>>>> 1c8c75477df826c55c86d576cfcc318bb38bbf4c
