@@ -10,6 +10,7 @@ from app.tools.time_tool import TimeInput
 from app.tools.file_tool import FileInput
 from app.tools.search_tool import SearchInput
 from app.tools.code_tool import CodeInput
+from app.tools.weather_tool import WeatherInput
 from app.agent.service import AgentService
 from app.models.factory import create_model
 from app.models.openai_compatible import OpenAICompatibleModel
@@ -152,6 +153,13 @@ def time_tool(payload: TimeInput):
     except ValueError as exc:
         return {"success": False, "data": None, "error": {"code": "TIME_TOOL_ERROR", "message": str(exc)}}
     return ok(result)
+
+@app.post("/api/v1/tools/weather")
+def weather_tool(payload: WeatherInput):
+    try:
+        return ok(tool_registry.execute("weather", payload.model_dump()))
+    except ValueError as exc:
+        return {"success": False, "data": None, "error": {"code": "WEATHER_TOOL_ERROR", "message": str(exc)}}
 
 @app.post("/api/v1/tools/file")
 def file_tool(payload: FileInput):

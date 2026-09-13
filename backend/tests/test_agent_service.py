@@ -19,3 +19,12 @@ def test_agent_uses_time_tool(tmp_path: Path):
 def test_agent_reports_unknown_task(tmp_path: Path):
     response = AgentService(build_registry(tmp_path)).run("写一首诗")
     assert "目前可以处理" in response.answer
+
+
+def test_agent_recognizes_weather_tool(tmp_path: Path, monkeypatch):
+    from app.tools.registry import ToolDefinition, ToolRegistry
+    from app.tools.weather_tool import WeatherInput
+    registry = ToolRegistry()
+    registry.register(ToolDefinition("weather", "天气", WeatherInput, lambda payload: {"city": payload.city, "weather": "晴", "temperature": 25, "temperature_unit": "°C", "humidity": 50}))
+    response = AgentService(registry).run("查询北京天气")
+    assert response.steps[-1]["tool_name"] == "weather"

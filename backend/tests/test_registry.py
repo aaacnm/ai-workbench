@@ -9,7 +9,7 @@ from app.tools.calculator import CalculatorInput, calculate
 
 def test_registry_lists_and_executes_tools(tmp_path: Path):
     registry = build_registry(tmp_path)
-    assert {tool.name for tool in registry.list()} == {"calculator", "time", "search", "file", "code"}
+    assert {tool.name for tool in registry.list()} == {"calculator", "time", "search", "file", "code", "weather"}
     result = registry.execute("calculator", {"expression": "6 * 7"})
     assert result["output"] == 42
     assert result["status"] == "success"

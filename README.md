@@ -48,6 +48,9 @@ python -m pytest tests -q --basetemp .pytest-temp -p no:cacheprovider
 - [架构设计](docs/architecture.md)
 - [API 契约](docs/api.md)
 - [开发路线图](docs/roadmap.md)
+- [项目状态](docs/project-status.md)
+- [架构决策](docs/decisions.md)
+- [变更日志](docs/changelog.md)
 
 ## 阶段 2 验收
 

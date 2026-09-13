@@ -27,6 +27,10 @@ class AgentService:
         if any(word in text for word in ("时间", "几点", "日期")):
             timezone = "Asia/Shanghai" if "上海" in text or "北京时间" in text else "UTC"
             return self._execute("time", {"timezone": timezone}, "我识别到这是时间查询任务。", lambda out: f"当前时间（{out['timezone']}）：{out['formatted']}")
+        if any(word in text for word in ("天气", "气温", "温度")):
+            city_match = re.search(r"([\u4e00-\u9fff]{2,10})(?:的)?(?:天气|气温|温度)", text)
+            city = city_match.group(1) if city_match else "北京"
+            return self._execute("weather", {"city": city}, "我识别到这是天气查询任务。", lambda out: f"{out['city']}当前天气：{out['weather']}，温度 {out['temperature']}{out['temperature_unit']}，湿度 {out['humidity']}%。")
         expression = self._extract_expression(text)
         if expression:
             return self._execute("calculator", {"expression": expression}, "我识别到这是数学计算任务。", lambda out: f"计算结果：{out}")
