@@ -10,3 +10,7 @@
 - 修复中转站 Base URL、工具调用消息协议和测试环境隔离问题。
 - 增加天气工具，使用 Open-Meteo，支持 MockTransport 测试。
 - 增加项目状态、架构决策和变更日志，作为后续上下文恢复依据。
+- 2026-09-13: Added Stage 3 document persistence, chunking, local embeddings, keyword/vector search, grounded model context, and Chinese retrieval tests. Preserved the original Stage 2 model configuration UI and logic.
+## 2026-09-13
+
+- Classified deferred engineering work into Stage 4 (agent, retrieval, and context abstractions) and Stage 5 (database, deployment, security, upload, streaming, and observability infrastructure).

@@ -30,3 +30,25 @@ class MessageModel(Base):
     steps: Mapped[list | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     session: Mapped[SessionModel] = relationship(back_populates="messages")
+
+
+class DocumentModel(Base):
+    __tablename__ = "documents"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    filename: Mapped[str] = mapped_column(String(255))
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+    chunks: Mapped[list["DocumentChunkModel"]] = relationship(back_populates="document", cascade="all, delete-orphan")
+
+
+class DocumentChunkModel(Base):
+    __tablename__ = "document_chunks"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    document_id: Mapped[str] = mapped_column(ForeignKey("documents.id"), index=True)
+    chunk_index: Mapped[int]
+    content: Mapped[str] = mapped_column(Text)
+    metadata_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    embedding: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    embedding_model: Mapped[str] = mapped_column(String(80), default="local-hash-v2")
+    embedding_dim: Mapped[int] = mapped_column(default=32)
+    document: Mapped[DocumentModel] = relationship(back_populates="chunks")

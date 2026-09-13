@@ -45,3 +45,14 @@
 
 - 运行时配置目前支持单个当前模型实例，多 profile 已保存但尚未做多模型并行管理。
 - 向量数据库、用户认证、生产级代码沙箱和流式响应尚未实现。
+- Stage 3 implementation notes (2026-09-13): document persistence, chunking, local 32D embeddings, keyword/vector search, optional grounded context, and Chinese retrieval coverage are implemented. Utility intents skip retrieval; relevant context is passed to configured models with source filenames. Backend verification: 59 tests passed. Frontend production build passed.
+- Stage 3 risks: startup ALTER TABLE is only a temporary migration, local hash embeddings are placeholders, Chinese tokenization needs improvement, and document deletion/file uploads/access control/streaming are not implemented. The original Stage 2 model configuration UI remains unchanged.
+## 2026-09-13 Session Summary
+
+Stage 3 MVP is functionally complete. Backend `72 passed, 1 warning`; frontend Vite production build passed. Deferred work is recorded for Stage 4/5.
+
+## Deferred Engineering Work
+
+These items are intentionally deferred from Stage 3. Stage 4 covers embedding providers, VectorStore, context budgets, atomic runtime state, concurrency, and stronger multi-turn management. Stage 5 covers Alembic, PostgreSQL/pgvector, WAL/foreign keys, multipart/PDF uploads, HTTP status normalization, authentication, streaming, monitoring, Docker, and performance/cost optimization.
+
+Stage 3 acceptance baseline: ingestion, chunking, deduplication, deletion, local embeddings, keyword/vector retrieval, grounded model context, source metadata, frontend knowledge management, and 72 passing backend tests.

@@ -32,5 +32,5 @@ def load_model_configs() -> list[ModelConfig]:
         defaults = {"deepseek": "https://api.deepseek.com/v1", "qwen": "https://dashscope.aliyuncs.com/compatible-mode/v1", "zhipu": "https://open.bigmodel.cn/api/paas/v4"}
         return [ModelConfig(provider, provider, model_name, os.getenv("MODEL_BASE_URL", defaults[provider]), f"{provider.upper()}_API_KEY", True, False, temperature, max_tokens, timeout)]
     if provider == "openai-compatible":
-        return [ModelConfig("openai-compatible", provider, model_name, os.getenv("OPENAI_BASE_URL"), "OPENAI_API_KEY", True, False)]
+        return [ModelConfig("openai-compatible", provider, model_name, os.getenv("MODEL_BASE_URL") or os.getenv("OPENAI_BASE_URL"), "OPENAI_API_KEY", True, False)]
     return [ModelConfig("mock", "mock", "mock", None, None, True, True, temperature, max_tokens, timeout)]

@@ -5,6 +5,7 @@ from typing import Any
 from app.tools.registry import ToolRegistry
 from app.models.base import ChatModel
 import json
+import os
 
 
 @dataclass
@@ -39,12 +40,19 @@ class AgentService:
             return self._execute("search", {"query": query}, "我识别到这是搜索任务。", lambda out: "搜索结果：" + "；".join(item["title"] for item in out))
         return AgentResponse("我目前可以处理时间查询、数学计算和 Mock 搜索。请明确描述任务。", [{"type": "summary", "content": "未匹配到可用工具"}], self.model_name)
 
-    def run_with_model(self, content: str) -> AgentResponse:
+    def run_with_model(self, content: str, history: list[dict[str, str]] | None = None) -> AgentResponse:
         """Run the provider tool-call protocol when a model is configured."""
         if self.model is None:
             return self.run(content)
-        messages = [{"role": "user", "content": content}]
-        definitions = [{"type": "function", "function": {"name": t.name, "description": t.description, "parameters": t.input_model.model_json_schema()}} for t in self.registry.list()]
+        if content.startswith("[KNOWLEDGE_CONTEXT]") and "\n[QUESTION]\n" in content:
+            context, question = content.split("\n[QUESTION]\n", 1)
+            messages = [
+                {"role": "system", "content": "You are a grounded assistant. When knowledge context is provided, use it as the primary source, synthesize a clear answer, cite the source filename, and never claim ignorance if the context directly answers the question. Do not invent facts beyond the context."},
+                {"role": "user", "content": f"Knowledge context:\n{context.replace('[KNOWLEDGE_CONTEXT]\n', '')}\n\nQuestion: {question}"},
+            ]
+        else:
+            messages = list(history or []) + [{"role": "user", "content": content}]
+        definitions = [{"type": "function", "function": {"name": t.name, "description": t.description, "parameters": t.input_model.model_json_schema()}} for t in self.registry.list() if t.name != "code" or os.getenv("ENABLE_CODE_TOOL", "false").lower() == "true"]
         steps: list[dict[str, Any]] = []
         for _ in range(3):
             response = self.model.chat(messages, definitions)

@@ -27,3 +27,11 @@
 目标：Docker Compose、PostgreSQL、结构化日志、监控、性能和成本优化。验收：全新环境按 README 一条路径启动并通过测试。
 
 每阶段拆成可独立验收的小功能，完成后再进入下一阶段。
+### Deferred Engineering Allocation
+
+Stage 4: real embedding providers, VectorStore abstraction, retrieval token budgets, atomic runtime model state, concurrency tests, and stronger multi-turn context management.
+
+Stage 5: Alembic migrations, PostgreSQL/pgvector, SQLite WAL/foreign keys, standard multipart uploads and PDF parsing, HTTP error status normalization, authentication/document ownership, streaming, monitoring, Docker deployment, and performance/cost optimization.
+## Next Session Start Point
+
+Begin Stage 4 with retrieval quality: connect the embedding provider boundary, introduce a VectorStore interface, and add relevance-quality tests before changing storage infrastructure.

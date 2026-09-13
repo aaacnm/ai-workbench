@@ -62,9 +62,12 @@ def list_configs() -> list[dict]:
         return [{"provider": row.provider, "model_name": row.model_name, "base_url": row.base_url, "temperature": row.temperature, "max_tokens": row.max_tokens, "timeout_seconds": row.timeout_seconds, "api_key_configured": bool(row.encrypted_api_key)} for row in db.query(StoredModelConfig).order_by(StoredModelConfig.id.desc()).all()]
 
 
-def clear_config() -> None:
+def clear_config(provider: str | None = None, model_name: str | None = None) -> None:
     with SessionLocal() as db:
-        db.query(StoredModelConfig).delete()
+        query = db.query(StoredModelConfig)
+        if provider and model_name:
+            query = query.filter_by(provider=provider, model_name=model_name)
+        query.delete(synchronize_session=False)
         db.commit()
 
 

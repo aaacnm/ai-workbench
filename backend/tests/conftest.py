@@ -1,4 +1,10 @@
 import os
+import tempfile
+
+# Set DATABASE_URL before application modules are imported and their engine is created.
+_test_database = tempfile.NamedTemporaryFile(prefix="ai-workbench-test-", suffix=".db", delete=False)
+_test_database.close()
+os.environ["DATABASE_URL"] = f"sqlite:///{_test_database.name.replace(chr(92), '/') }"
 
 import pytest
 
@@ -16,6 +22,9 @@ def isolate_model_environment(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("ZHIPU_API_KEY", raising=False)
     monkeypatch.delenv("CONFIG_ENCRYPTION_KEY", raising=False)
     import app.main as main
+    from app.db.database import Base, engine
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
     from app.agent.service import AgentService
     from app.models.mock import MockChatModel
     from app.models.registry import ModelRegistry, RegisteredModel

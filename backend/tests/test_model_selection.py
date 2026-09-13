@@ -12,6 +12,15 @@ def test_message_rejects_unknown_model():
 
 
 def test_message_uses_default_mock_model():
-    response = client.post("/api/v1/sessions/model-selection/messages", json={"content": "请计算 2 + 2"})
-    assert response.json()["success"] is True
-    assert response.json()["data"]["model"] == "mock"
+      session = client.post(
+          "/api/v1/sessions",
+          json={"title": "model-selection"},
+      ).json()["data"]
+
+      response = client.post(
+          f"/api/v1/sessions/{session['id']}/messages",
+          json={"content": "请计算 2 + 2"},
+      )
+
+      assert response.json()["success"] is True
+      assert response.json()["data"]["model"] == "mock"

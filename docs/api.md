@@ -48,3 +48,4 @@
 ```
 
 API Key 使用 Fernet 加密后保存到 SQLite，响应只返回 `api_key_configured`，不会返回密钥原文。生产或本地持久化必须设置 `CONFIG_ENCRYPTION_KEY`。
+- Knowledge base endpoints: POST /api/v1/documents with {filename, content}; GET /api/v1/documents; GET /api/v1/documents/{id}; GET /api/v1/documents/search?q=...&mode=keyword|vector&limit=.... Session retrieval is optional and utility intents skip retrieval.

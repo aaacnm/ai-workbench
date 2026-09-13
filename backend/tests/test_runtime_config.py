@@ -32,3 +32,13 @@ def test_config_requires_encryption_key(monkeypatch):
     monkeypatch.delenv("CONFIG_ENCRYPTION_KEY", raising=False)
     response = client.post("/api/v1/config/model", json={"provider": "deepseek", "model_name": "deepseek-chat", "api_key": "secret"})
     assert response.json()["error"]["code"] == "CONFIG_ENCRYPTION_ERROR"
+
+
+def test_switching_provider_does_not_reuse_previous_api_key(monkeypatch):
+    monkeypatch.setenv("CONFIG_ENCRYPTION_KEY", Fernet.generate_key().decode())
+    first = client.post("/api/v1/config/model", json={"provider": "openai-compatible", "model_name": "one", "api_key": "openai-secret"})
+    assert first.json()["success"] is True
+    second = client.post("/api/v1/config/model", json={"provider": "deepseek", "model_name": "two"})
+    assert second.json()["data"]["api_key_configured"] is False
+    assert "DEEPSEEK_API_KEY" not in __import__("os").environ
+    assert "OPENAI_API_KEY" not in __import__("os").environ

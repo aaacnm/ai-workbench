@@ -1,11 +1,13 @@
 import os
+from threading import RLock
 from dataclasses import dataclass
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 
 class RuntimeModelUpdate(BaseModel):
-    provider: str = Field(min_length=1, max_length=40)
+    provider: Literal["mock", "openai-compatible", "deepseek", "qwen", "zhipu", "ollama"]
     model_name: str = Field(min_length=1, max_length=120)
     base_url: str | None = Field(default=None, max_length=300)
     api_key: str | None = Field(default=None, max_length=500)
@@ -37,12 +39,20 @@ class RuntimeModelState:
 
 
 runtime_model_state = RuntimeModelState()
+runtime_model_lock = RLock()
 
 
 def update_runtime_model(payload: RuntimeModelUpdate) -> dict[str, object]:
+    with runtime_model_lock:
+        return _update_runtime_model(payload)
+
+def _update_runtime_model(payload: RuntimeModelUpdate) -> dict[str, object]:
     values = payload.model_dump()
-    if values.get("api_key") is None:
+    same_profile = payload.provider == runtime_model_state.provider and payload.model_name == runtime_model_state.model_name
+    if values.get("api_key") is None and same_profile:
         values["api_key"] = runtime_model_state.api_key
+    if not same_profile and values.get("api_key") is None:
+        values["api_key"] = None
     for field, value in values.items():
         setattr(runtime_model_state, field, value)
     os.environ["MODEL_PROVIDER"] = payload.provider
@@ -51,7 +61,11 @@ def update_runtime_model(payload: RuntimeModelUpdate) -> dict[str, object]:
         os.environ["MODEL_BASE_URL"] = payload.base_url
     if payload.provider == "ollama" and payload.base_url:
         os.environ["OLLAMA_BASE_URL"] = payload.base_url
+    for provider in ("OPENAI-COMPATIBLE", "DEEPSEEK", "QWEN", "ZHIPU", "OLLAMA"):
+        os.environ.pop(f"{provider}_API_KEY", None)
+    os.environ.pop("OPENAI_API_KEY", None)
     if runtime_model_state.api_key:
         os.environ[f"{payload.provider.upper()}_API_KEY"] = runtime_model_state.api_key
-        os.environ["OPENAI_API_KEY"] = runtime_model_state.api_key
+        if payload.provider == "openai-compatible":
+            os.environ["OPENAI_API_KEY"] = runtime_model_state.api_key
     return runtime_model_state.summary()
